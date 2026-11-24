@@ -2,7 +2,7 @@
 #include <string.h>
 #include <math.h>
 
-#define MAX_LEITURAS 7
+#define MAX_LEITURAS 20
 #define TEMP_MIN -10
 #define TEMP_MAX 190
 #define NUM_SENSORES 3
