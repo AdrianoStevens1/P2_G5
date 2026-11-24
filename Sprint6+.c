@@ -355,6 +355,8 @@ int main(void) {
 
     // Ler os valores
 
+    fprintf(stderr, "Introduza as leituras (SENSOR INSTANTE VALOR). Termine com FIM.\n");
+
     n = lerTemperaturas(
         sensoresLidos,
         instantes,
