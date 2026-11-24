@@ -2,41 +2,28 @@
 #include <string.h>
 #include <math.h>
 
-#define MAX_LEITURAS 5
+#define MAX_LEITURAS 7
 #define TEMP_MIN -10
 #define TEMP_MAX 190
-
-// Estrutura dos sensores
-struct Sensor {
-    char nome[10];
-    float ganho;
-    float desvio;
-};
+#define NUM_SENSORES 3
 
 // Dados de calibracao dos sensores
-struct Sensor sensores[] = {
-    {"TEMP1", 260, -20},
-    {"TEMP2", 250, -15},
-    {"TEMP3", 240, -10}
+
+char nomesSensores[NUM_SENSORES][10] = {
+    "TEMP1", "TEMP2", "TEMP3"
 };
 
-#define NUM_SENSORES (sizeof(sensores) / sizeof(sensores[0]))
-
-// Estrutura das leituras
-struct Leitura {
-    int sensor;
-    int instante;
-    int valor;
-    float temperatura;
-};
+float ganhos[NUM_SENSORES] = {260, 250, 240};
+float desvios[NUM_SENSORES] = {-20, -15, -10};
 
 
 // Funcao para identificar o sensor
+
 int procurarSensor(char nome[]) {
 
-    for (int i = 0; i < (int)NUM_SENSORES; i++) {
+    for (int i = 0; i < NUM_SENSORES; i++) {
 
-        if (strcmp(nome, sensores[i].nome) == 0) {
+        if (strcmp(nome, nomesSensores[i]) == 0) {
             return i;
         }
     }
@@ -46,14 +33,16 @@ int procurarSensor(char nome[]) {
 
 
 // Funcao para converter o valor em temperatura
+
 float converterParaTemperatura(int x, int sensor) {
 
-    return sensores[sensor].ganho * x / 1023.0
-           + sensores[sensor].desvio;
+    return ganhos[sensor] * x / 1023.0
+           + desvios[sensor];
 }
 
 
 // Funcao para verificar a validade da temperatura
+
 int verificarTemperaturaValida(float temp) {
 
     if (temp < TEMP_MIN || temp > TEMP_MAX) {
@@ -65,13 +54,15 @@ int verificarTemperaturaValida(float temp) {
 
 
 // Funcao para verificar se uma leitura e duplicada
-int leituraDuplicada(struct Leitura leituras[], int n,
-                     int sensor, int instante) {
+
+int leituraDuplicada(int sensoresLidos[],
+                     int instantes[],
+                     int n, int sensor, int instante) {
 
     for (int i = 0; i < n; i++) {
 
-        if (leituras[i].sensor == sensor &&
-            leituras[i].instante == instante) {
+        if (sensoresLidos[i] == sensor &&
+            instantes[i] == instante) {
 
             return 1;
         }
@@ -82,7 +73,11 @@ int leituraDuplicada(struct Leitura leituras[], int n,
 
 
 // Funcao para ler as temperaturas
-int lerTemperaturas(struct Leitura leituras[],
+
+int lerTemperaturas(int sensoresLidos[],
+                    int instantes[],
+                    int valores[],
+                    float temperaturas[],
                     int max_leituras) {
 
     char linha[100];
@@ -93,30 +88,26 @@ int lerTemperaturas(struct Leitura leituras[],
     int n = 0;
     float temp;
 
-    printf("\n========================================\n");
-    printf("       CONVERSOR DE TEMPERATURAS\n");
-    printf("========================================\n");
-    printf("Formato: SENSOR INSTANTE VALOR\n");
-    printf("Introduza FIM para terminar.\n\n");
-
     while (n < max_leituras) {
 
-        printf("Leitura [%d/%d]: ", n + 1, max_leituras);
-
         // Ler a linha completa
+
         if (fgets(linha, sizeof(linha), stdin) == NULL) {
             break;
         }
 
-        // Ler o nome do sensor e ignorar linhas em branco
+        // Ler o nome e ignorar linhas em branco
+
         if (sscanf(linha, "%9s", nome) != 1) {
             continue;
         }
 
         // Verificar se o utilizador quer terminar
+
         if (strcmp(nome, "FIM") == 0) {
 
-            if (sscanf(linha, "%9s %c", nome, &extra) == 1) {
+            if (sscanf(linha, "%9s %c",
+                       nome, &extra) == 1) {
                 break;
             }
 
@@ -125,6 +116,7 @@ int lerTemperaturas(struct Leitura leituras[],
         }
 
         // Verificar se o sensor existe
+
         sensor = procurarSensor(nome);
 
         if (sensor == -1) {
@@ -132,7 +124,8 @@ int lerTemperaturas(struct Leitura leituras[],
             continue;
         }
 
-        // Verificar os tres campos da linha
+        // Verificar os campos da linha
+
         if (sscanf(linha, "%9s %d %d %c",
                    nome, &instante, &x, &extra) != 3) {
 
@@ -140,34 +133,41 @@ int lerTemperaturas(struct Leitura leituras[],
             continue;
         }
 
-        // Verificar o valor lido pelo sensor
+        // Verificar o valor digital
+
         if (x < 0 || x > 1023) {
             printf("Linha invalida\n");
             continue;
         }
 
         // Converter o valor em temperatura
+
         temp = converterParaTemperatura(x, sensor);
 
-        // Verificar a validade da temperatura
+        // Verificar a gama da temperatura
+
         if (verificarTemperaturaValida(temp) == 0) {
             printf("Valor fora da gama\n");
             continue;
         }
 
-        // Verificar se a leitura ja existe
-        if (leituraDuplicada(leituras, n, sensor, instante) == 1) {
+        // Verificar se a leitura e duplicada
+
+        if (leituraDuplicada(sensoresLidos, instantes,
+                            n, sensor, instante) == 1) {
+
             printf("Leitura duplicada\n");
             continue;
         }
 
-        // Guardar os dados da leitura
-        leituras[n].sensor = sensor;
-        leituras[n].instante = instante;
-        leituras[n].valor = x;
-        leituras[n].temperatura = temp;
+        // Guardar os dados nos vetores
 
-        printf("Temperatura convertida: %.2f C\n", temp);
+        sensoresLidos[n] = sensor;
+        instantes[n] = instante;
+        valores[n] = x;
+        temperaturas[n] = temp;
+
+        printf("%.2f\n", temp);
 
         n++;
     }
@@ -177,10 +177,15 @@ int lerTemperaturas(struct Leitura leituras[],
 
 
 // Funcao para calcular minimo, maximo e media
-int calcularEstatisticas(struct Leitura leituras[],
+
+int calcularEstatisticas(int sensoresLidos[],
+                         int instantes[],
+                         float temperaturas[],
                          int n, int sensor,
-                         float *minimo, float *maximo,
-                         float *media, int *instanteMin,
+                         float *minimo,
+                         float *maximo,
+                         float *media,
+                         int *instanteMin,
                          int *instanteMax) {
 
     float soma = 0;
@@ -188,33 +193,37 @@ int calcularEstatisticas(struct Leitura leituras[],
 
     for (int i = 0; i < n; i++) {
 
-        if (leituras[i].sensor == sensor) {
+        if (sensoresLidos[i] == sensor) {
 
             // Inicializar minimo e maximo
+
             if (total == 0) {
 
-                *minimo = leituras[i].temperatura;
-                *maximo = leituras[i].temperatura;
+                *minimo = temperaturas[i];
+                *maximo = temperaturas[i];
 
-                *instanteMin = leituras[i].instante;
-                *instanteMax = leituras[i].instante;
+                *instanteMin = instantes[i];
+                *instanteMax = instantes[i];
             }
 
             // Somar as temperaturas
-            soma = soma + leituras[i].temperatura;
+
+            soma = soma + temperaturas[i];
 
             // Verificar a temperatura minima
-            if (leituras[i].temperatura < *minimo) {
 
-                *minimo = leituras[i].temperatura;
-                *instanteMin = leituras[i].instante;
+            if (temperaturas[i] < *minimo) {
+
+                *minimo = temperaturas[i];
+                *instanteMin = instantes[i];
             }
 
             // Verificar a temperatura maxima
-            if (leituras[i].temperatura > *maximo) {
 
-                *maximo = leituras[i].temperatura;
-                *instanteMax = leituras[i].instante;
+            if (temperaturas[i] > *maximo) {
+
+                *maximo = temperaturas[i];
+                *instanteMax = instantes[i];
             }
 
             total++;
@@ -222,6 +231,7 @@ int calcularEstatisticas(struct Leitura leituras[],
     }
 
     // Calcular a media
+
     if (total > 0) {
         *media = soma / total;
     }
@@ -231,7 +241,9 @@ int calcularEstatisticas(struct Leitura leituras[],
 
 
 // Funcao para calcular o desvio-padrao
-float calcularDesvioPadrao(struct Leitura leituras[],
+
+float calcularDesvioPadrao(int sensoresLidos[],
+                           float temperaturas[],
                            int n, int sensor,
                            float media, int total) {
 
@@ -244,9 +256,9 @@ float calcularDesvioPadrao(struct Leitura leituras[],
 
     for (int i = 0; i < n; i++) {
 
-        if (leituras[i].sensor == sensor) {
+        if (sensoresLidos[i] == sensor) {
 
-            diferenca = leituras[i].temperatura - media;
+            diferenca = temperaturas[i] - media;
 
             soma_desvios = soma_desvios
                           + diferenca * diferenca;
@@ -258,79 +270,101 @@ float calcularDesvioPadrao(struct Leitura leituras[],
 
 
 // Funcao para mostrar as temperaturas
-void mostrarTemperaturas(struct Leitura leituras[], int n) {
 
-    printf("\n========================================\n");
-    printf("          TEMPERATURAS LIDAS\n");
-    printf("========================================\n");
+void mostrarTemperaturas(int sensoresLidos[],
+                         int instantes[],
+                         int valores[],
+                         float temperaturas[],
+                         int n) {
+
+    printf("\nLeituras registadas ");
+    printf("(sensor instante: valor -> temperatura):\n\n");
 
     for (int i = 0; i < n; i++) {
 
-        printf("[%d] Sensor: %s | Instante: %d | "
-               "Valor: %d | Temp: %.2f C\n",
-
-               i + 1,
-               sensores[leituras[i].sensor].nome,
-               leituras[i].instante,
-               leituras[i].valor,
-               leituras[i].temperatura);
+        printf("%s %d: %d -> %.2f\n",
+               nomesSensores[sensoresLidos[i]],
+               instantes[i],
+               valores[i],
+               temperaturas[i]);
     }
 }
 
 
 // Funcao para mostrar as estatisticas
-void mostrarEstatisticas(struct Leitura leituras[], int n) {
+
+void mostrarEstatisticas(int sensoresLidos[],
+                         int instantes[],
+                         float temperaturas[],
+                         int n) {
 
     float minimo, maximo, media, desvio;
     int total;
     int instanteMin, instanteMax;
 
-    printf("\n========================================\n");
-    printf("          RESUMO ESTATISTICO\n");
-    printf("========================================\n");
-
-    for (int s = 0; s < (int)NUM_SENSORES; s++) {
+    for (int s = 0; s < NUM_SENSORES; s++) {
 
         total = calcularEstatisticas(
-            leituras, n, s,
-            &minimo, &maximo, &media,
-            &instanteMin, &instanteMax
+            sensoresLidos,
+            instantes,
+            temperaturas,
+            n,
+            s,
+            &minimo,
+            &maximo,
+            &media,
+            &instanteMin,
+            &instanteMax
         );
 
         if (total > 0) {
 
             desvio = calcularDesvioPadrao(
-                leituras, n, s, media, total
+                sensoresLidos,
+                temperaturas,
+                n,
+                s,
+                media,
+                total
             );
 
-            printf("\nSensor: %s\n", sensores[s].nome);
-            printf("----------------------------------------\n");
+            printf("\nSensor %s\n", nomesSensores[s]);
 
-            printf("Total de valores : %d\n", total);
-            printf("Minimo           : %.2f C\n", minimo);
-            printf("Instante minimo  : %d\n", instanteMin);
-            printf("Maximo           : %.2f C\n", maximo);
-            printf("Instante maximo  : %d\n", instanteMax);
-            printf("Media            : %.2f C\n", media);
-            printf("Desvio-Padrao    : %.2f C\n", desvio);
+            printf("Numero de valores lidos: %d\n", total);
+            printf("Temperatura minima: %.2f\n", minimo);
+            printf("Instante minimo: %d\n", instanteMin);
+            printf("Temperatura maxima: %.2f\n", maximo);
+            printf("Instante maximo: %d\n", instanteMax);
+            printf("Temperatura media: %.2f\n", media);
+            printf("Desvio-padrao: %.2f\n", desvio);
         }
     }
-
-    printf("========================================\n");
 }
 
 
 // Programa principal
+
 int main(void) {
 
-    struct Leitura leituras[MAX_LEITURAS];
+    int sensoresLidos[MAX_LEITURAS];
+    int instantes[MAX_LEITURAS];
+    int valores[MAX_LEITURAS];
+    float temperaturas[MAX_LEITURAS];
 
     int n;
 
     // Ler os valores
-    n = lerTemperaturas(leituras, MAX_LEITURAS);
+
+    n = lerTemperaturas(
+        sensoresLidos,
+        instantes,
+        valores,
+        temperaturas,
+        MAX_LEITURAS
+    );
 
     // Verificar se existem leituras validas
+
     if (n == 0) {
 
         printf("\nNao existem temperaturas validas registadas.\n");
@@ -339,10 +373,23 @@ int main(void) {
     }
 
     // Mostrar as temperaturas
-    mostrarTemperaturas(leituras, n);
+
+    mostrarTemperaturas(
+        sensoresLidos,
+        instantes,
+        valores,
+        temperaturas,
+        n
+    );
 
     // Mostrar as estatisticas
-    mostrarEstatisticas(leituras, n);
+
+    mostrarEstatisticas(
+        sensoresLidos,
+        instantes,
+        temperaturas,
+        n
+    );
 
     return 0;
 }
